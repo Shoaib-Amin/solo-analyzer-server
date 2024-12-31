@@ -38,7 +38,6 @@ router.post('/audio', async (req, res) => {
             }
             console.log('Temporary audio file saved at:', tempFilePath);
         });
-        console.log('Temporary audio file saved at:', tempFilePath);
 
         // Call Python script to analyze the audio file
         const pythonProcess = spawn('python', ['analyze_audio.py', tempFilePath]);
@@ -134,7 +133,7 @@ router.post('/test', upload.single('audio'), (req, res) => {
         //   });
     } catch (error) {
         console.error('Error handling file upload:', error);
-        res.status(500).json({ error: 'Internal server error.' });
+        res.status(500).json({ error: error });
     }
 })
 

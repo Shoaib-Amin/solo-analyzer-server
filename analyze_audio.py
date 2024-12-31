@@ -19,6 +19,9 @@ def analyze_audio(file_path):
     # Convert pitches to note names (MIDI note numbers)
     notes = []
     note_timings = []  # To store note timing information
+    durations = []  # To store note durations
+    transcription = []
+
     for t in range(pitches.shape[1]):
         index = magnitudes[:, t].argmax()  # Find the index with the highest magnitude for each frame
         pitch = pitches[index, t]  # Extract the pitch
@@ -27,7 +30,32 @@ def analyze_audio(file_path):
             note_name = librosa.midi_to_note(midi_note)
             notes.append(note_name)
             note_timings.append(t * (1 / sr))  # Calculate timing for the note
-    
+
+    # Calculate durations based on onset times
+    for i in range(len(onset_times)):
+        start_time = onset_times[i]
+        end_time = onset_times[i + 1] if i + 1 < len(onset_times) else start_time + 0.5  # Default to 0.5s for last note
+        duration = end_time - start_time
+        durations.append(duration)
+
+    # Map durations to VexFlow-compatible values
+    vex_durations = []
+    for duration in durations:
+        if duration < 0.25:
+            vex_durations.append("16")  # Sixteenth note
+        elif duration < 0.5:
+            vex_durations.append("8")  # Eighth note
+        elif duration < 1.0:
+            vex_durations.append("q")  # Quarter note
+        elif duration < 2.0:
+            vex_durations.append("h")  # Half note
+        else:
+            vex_durations.append("w")  # Whole note
+
+    # Create the transcription combining notes, timings, and durations
+    for note, timing, vex_duration in zip(notes, note_timings, vex_durations):
+        transcription.append({"note": note, "time": timing, "duration": vex_duration})
+
     # Calculate intervals (differences) between consecutive notes
     intervals_up = []
     intervals_down = []
@@ -74,13 +102,11 @@ def analyze_audio(file_path):
             "count": intervals_down.count(interval)
         })
 
-    transcription = [{"note": note, "time": time} for note, time in zip(notes, note_timings)]
-    
     analysis_result = {
         'tempo': tempo,
         'onset_times': onset_times.tolist(),  # Convert NumPy array to list
         'note_percentages': {note: notes.count(note) / len(notes) * 100 for note in set(notes)},
-        'transcription': transcription,  # Include transcription in the output
+        'transcription': transcription,  # Include transcription with durations
         'intervals_up': intervals_up,
         'intervals_down': intervals_down,
         'intervals_up_display': intervals_up_display,
